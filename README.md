@@ -1,6 +1,13 @@
 # نظام مطابقة وتسوية كشوف حسابات الموردين — درة السيارة 🚗📊
 > **Supplier Statement Financial Reconciliation System**
-> منصة ويب محاسبية مستقلة ومتطورة لتحليل ومقارنة كشوف حسابات الموردين (PDF / Excel) بدفاتر وقيود مشتريات درة السيارة واستخراج الفروقات المحاسبية آلياً.
+> منصة ويب محاسبية مستقلة ومتطورة تابعة لمنظومة ذكاء الأعمال (BI) لتحليل ومقارنة كشوف حسابات الموردين (PDF / Excel) بدفاتر وقيود مشتريات درة السيارة واستخراج الفروقات المحاسبية آلياً.
+
+---
+
+## 🔗 روابط المنصة الحية
+- **المنصة السحابية المباشرة (Live)**: [https://bi.doracar.com/reconciliation/](https://bi.doracar.com/reconciliation/)
+- **بوابة أنظمة ذكاء الأعمال (BI Portal)**: [https://bi.doracar.com/#/portal](https://bi.doracar.com/#/portal)
+- **مستودع الكود المصدري**: [https://github.com/yahya27390-art/supplier-reconciliation](https://github.com/yahya27390-art/supplier-reconciliation)
 
 ---
 
