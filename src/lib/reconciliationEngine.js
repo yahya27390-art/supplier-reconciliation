@@ -7,7 +7,7 @@
  * Core Rule: "أي كسر في التطابق تلاشاه يعني لو مثلا المبلغ 956.25 طابق المبلغ الثابت واترك .25 هلله اذا لقيت المبلغين الفرق بينهم بهذا النظام"
  */
 
-import { roundToHalalas } from './formatters';
+import { roundToHalalas, compareByDateAsc } from './formatters';
 
 /**
  * Checks if two amounts match under the Halala / Fractional Discard Rule:
@@ -530,9 +530,10 @@ function buildReconciliationSummary({ supplierItems, doraItems, matched, missing
       fixedAmountMatchCount: fixedAmountMatchItems.length,
       halalasVarianceTotal,
     },
-    missingAtDora: missingAtDora.sort((a, b) => b.amount - a.amount),
-    missingAtSupplier: missingAtSupplier.sort((a, b) => b.amount - a.amount),
-    amountMismatches: amountMismatches.sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference)),
-    matched: matched.sort((a, b) => b.supplierAmount - a.supplierAmount),
+    // Strictly sort chronologically by date: OLDEST on top, NEWEST at the bottom (من الأقدم إلى الأحدث)
+    missingAtDora: missingAtDora.sort((a, b) => compareByDateAsc(a, b, 'date', 'date')),
+    missingAtSupplier: missingAtSupplier.sort((a, b) => compareByDateAsc(a, b, 'date', 'date')),
+    amountMismatches: amountMismatches.sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate')),
+    matched: matched.sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate')),
   };
 }

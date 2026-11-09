@@ -160,3 +160,71 @@ export function fixGarbledArabic(str) {
 
   return polished;
 }
+
+/**
+ * Safely parses a date string into a timestamp for chronological comparison
+ */
+export function parseDateToTimestamp(raw) {
+  if (!raw || raw === '—') return NaN;
+  const s = String(raw).trim();
+  if (!s || s === '—') return NaN;
+
+  // Standard ISO: YYYY-MM-DD
+  const mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (mIso) {
+    const y = parseInt(mIso[1], 10);
+    const m = parseInt(mIso[2], 10) - 1;
+    const d = parseInt(mIso[3], 10);
+    return new Date(y, m, d).getTime();
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  const mDmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (mDmy) {
+    const d = parseInt(mDmy[1], 10);
+    const m = parseInt(mDmy[2], 10) - 1;
+    const y = parseInt(mDmy[3], 10);
+    return new Date(y, m, d).getTime();
+  }
+
+  const dt = new Date(s);
+  return isNaN(dt.getTime()) ? NaN : dt.getTime();
+}
+
+/**
+ * Compares two items by date in ASCENDING order (الأقدم فوق والأحدث تحت)
+ * Oldest dates (earliest timestamp) come first.
+ * If dates are equal, ties are broken by invoice number or amount.
+ */
+export function compareByDateAsc(a, b, keyA = 'date', keyB = 'date') {
+  const valA = a[keyA] || a.date || a.supplierDate || a.doraDate || '';
+  const valB = b[keyB] || b.date || b.supplierDate || b.doraDate || '';
+
+  const tA = parseDateToTimestamp(valA);
+  const tB = parseDateToTimestamp(valB);
+
+  const validA = !isNaN(tA);
+  const validB = !isNaN(tB);
+
+  if (validA && validB) {
+    if (tA !== tB) return tA - tB; // Ascending: Oldest first
+  } else if (validA && !validB) {
+    return -1; // Valid date comes before missing date
+  } else if (!validA && validB) {
+    return 1;
+  }
+
+  // Tie-breaker: invoice number
+  const invA = String(a.invoiceNumber || a.normalizedInvoice || '');
+  const invB = String(b.invoiceNumber || b.normalizedInvoice || '');
+  if (invA && invB) {
+    const cmp = invA.localeCompare(invB, undefined, { numeric: true });
+    if (cmp !== 0) return cmp;
+  }
+
+  // Tie-breaker 2: amount
+  const amtA = Number(a.amount || a.supplierAmount || 0);
+  const amtB = Number(b.amount || b.supplierAmount || 0);
+  return amtA - amtB;
+}
+

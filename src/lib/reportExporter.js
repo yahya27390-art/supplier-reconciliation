@@ -2,10 +2,15 @@
  * Accounting Report Exporter (Excel & Print PDF)
  */
 import * as XLSX from 'xlsx';
-import { fixGarbledArabic } from './formatters';
+import { fixGarbledArabic, compareByDateAsc } from './formatters';
 
 export function exportReconciliationToExcel(reconciliationResult, metadata = {}) {
-  const { kpis, missingAtDora, missingAtSupplier, amountMismatches, matched } = reconciliationResult;
+  const { kpis } = reconciliationResult;
+  // Strictly sort chronologically by date: Oldest on top, newest at bottom (من الأقدم إلى الأحدث)
+  const missingAtDora = [...(reconciliationResult.missingAtDora || [])].sort((a, b) => compareByDateAsc(a, b, 'date', 'date'));
+  const missingAtSupplier = [...(reconciliationResult.missingAtSupplier || [])].sort((a, b) => compareByDateAsc(a, b, 'date', 'date'));
+  const amountMismatches = [...(reconciliationResult.amountMismatches || [])].sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate'));
+  const matched = [...(reconciliationResult.matched || [])].sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate'));
   const supplierName = metadata.supplierName || 'المورد';
   const statementPeriod = metadata.period || 'كافة الفترات';
   const auditDate = new Date().toLocaleDateString('ar-SA');

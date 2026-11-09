@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { formatSAR, fixGarbledArabic } from '../lib/formatters';
+import { formatSAR, fixGarbledArabic, compareByDateAsc } from '../lib/formatters';
 import {
   Search, Copy, Check, AlertOctagon, AlertTriangle, CheckCircle2,
-  ArrowUpDown, Filter, Layers, Info
+  ArrowUpDown, Filter, Layers, Info, Calendar, ArrowUp, ArrowDown
 } from 'lucide-react';
 
 export default function ComparisonTable({
@@ -16,6 +16,18 @@ export default function ComparisonTable({
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedId, setCopiedId] = useState(null);
   const [checkedItems, setCheckedItems] = useState(new Set());
+  // Default sorting: Chronological by date ASCENDING (الأقدم فوق والأحدث تحت)
+  const [sortField, setSortField] = useState('date');
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'date' ? 'asc' : 'desc');
+    }
+  };
 
   const handleCopy = (text, id) => {
     navigator.clipboard?.writeText(String(text));
@@ -57,13 +69,38 @@ export default function ComparisonTable({
     });
   }, [currentList, searchQuery]);
 
+  // Sort list chronologically (or by chosen field) - Default: OLDEST first -> NEWEST last
+  const sortedList = useMemo(() => {
+    const listCopy = [...filteredList];
+    return listCopy.sort((a, b) => {
+      if (sortField === 'date') {
+        const dateA = a.date || a.supplierDate || a.doraDate || '';
+        const dateB = b.date || b.supplierDate || b.doraDate || '';
+        const comp = compareByDateAsc({ d: dateA }, { d: dateB }, 'd', 'd');
+        return sortDirection === 'asc' ? comp : -comp;
+      }
+      if (sortField === 'amount') {
+        const amtA = a.amount ?? a.supplierAmount ?? 0;
+        const amtB = b.amount ?? b.supplierAmount ?? 0;
+        return sortDirection === 'asc' ? amtA - amtB : amtB - amtA;
+      }
+      if (sortField === 'invoice') {
+        const invA = String(a.invoiceNumber || '');
+        const invB = String(b.invoiceNumber || '');
+        const comp = invA.localeCompare(invB, undefined, { numeric: true });
+        return sortDirection === 'asc' ? comp : -comp;
+      }
+      return 0;
+    });
+  }, [filteredList, sortField, sortDirection]);
+
   // Total for current filtered view
   const currentTotal = useMemo(() => {
     if (activeTab === 'amountMismatches') {
-      return filteredList.reduce((acc, it) => acc + Math.abs(it.difference || 0), 0);
+      return sortedList.reduce((acc, it) => acc + Math.abs(it.difference || 0), 0);
     }
-    return filteredList.reduce((acc, it) => acc + (it.amount || it.supplierAmount || 0), 0);
-  }, [filteredList, activeTab]);
+    return sortedList.reduce((acc, it) => acc + (it.amount || it.supplierAmount || 0), 0);
+  }, [sortedList, activeTab]);
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden no-print">
@@ -164,28 +201,88 @@ export default function ComparisonTable({
           </div>
         )}
 
-        <div className="text-slate-500 font-mono text-[11px] shrink-0 mr-4">
-          عرض {filteredList.length} من أصل {currentList.length} قيد
+        <div className="text-slate-500 font-mono text-[11px] shrink-0 mr-4 flex items-center gap-2">
+          <span>عرض {sortedList.length} من أصل {currentList.length} قيد</span>
+          <span className="text-slate-300">•</span>
+          <span className="text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-sans">
+            {sortField === 'date'
+              ? (sortDirection === 'asc' ? '📅 مرتبة: الأقدم أولاً ← الأحدث' : '📅 مرتبة: الأحدث أولاً ← الأقدم')
+              : sortField === 'amount'
+              ? (sortDirection === 'asc' ? '💰 المبلغ: الأقل ← الأكثر' : '💰 المبلغ: الأكثر ← الأقل')
+              : (sortDirection === 'asc' ? '🔢 الفاتورة: تصاعدي' : '🔢 الفاتورة: تنازلي')}
+          </span>
         </div>
       </div>
 
       {/* Table Content */}
       <div className="overflow-x-auto">
         <table className="w-full text-right text-xs">
-          <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+          <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 select-none">
             <tr>
               <th className="p-3 w-10 text-center">تدقيق</th>
               <th className="p-3 w-12 text-center">#</th>
-              <th className="p-3">رقم الفاتورة / المستند</th>
-              <th className="p-3">تاريخ القيد</th>
+              <th
+                onClick={() => toggleSort('invoice')}
+                className="p-3 cursor-pointer hover:bg-slate-200/70 transition-colors"
+                title="اضغط للترتيب برقم الفاتورة"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>رقم الفاتورة / المستند</span>
+                  {sortField === 'invoice' ? (
+                    sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => toggleSort('date')}
+                className="p-3 cursor-pointer hover:bg-slate-200/70 transition-colors"
+                title="اضغط للترتيب حسب التاريخ (الأقدم / الأحدث)"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>تاريخ القيد</span>
+                  {sortField === 'date' ? (
+                    sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                  )}
+                </div>
+              </th>
               {activeTab === 'amountMismatches' ? (
                 <>
-                  <th className="p-3">المبلغ عند المورد</th>
+                  <th
+                    onClick={() => toggleSort('amount')}
+                    className="p-3 cursor-pointer hover:bg-slate-200/70 transition-colors"
+                    title="اضغط للترتيب بالمبلغ عند المورد"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>المبلغ عند المورد</span>
+                      {sortField === 'amount' ? (
+                        sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                      )}
+                    </div>
+                  </th>
                   <th className="p-3">المبلغ عندنا</th>
                   <th className="p-3">فارق المبلغ</th>
                 </>
               ) : (
-                <th className="p-3">المبلغ (ر.س)</th>
+                <th
+                  onClick={() => toggleSort('amount')}
+                  className="p-3 cursor-pointer hover:bg-slate-200/70 transition-colors"
+                  title="اضغط للترتيب بالمبلغ"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>المبلغ (ر.س)</span>
+                    {sortField === 'amount' ? (
+                      sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                    ) : (
+                      <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    )}
+                  </div>
+                </th>
               )}
               <th className="p-3">البيان والتفاصيل</th>
               <th className="p-3 w-28 text-center">أسطر الملف</th>
@@ -193,14 +290,14 @@ export default function ComparisonTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredList.length === 0 ? (
+            {sortedList.length === 0 ? (
               <tr>
                 <td colSpan={9} className="p-8 text-center text-slate-400 font-bold">
                   {searchQuery ? 'لا توجد نتائج تطابق بحثك' : 'لا توجد قيود في هذا التبويب'}
                 </td>
               </tr>
             ) : (
-              filteredList.map((item, idx) => {
+              sortedList.map((item, idx) => {
                 const itemId = `${activeTab}-${item.normalizedInvoice || idx}`;
                 const isChecked = checkedItems.has(itemId);
 
@@ -341,7 +438,7 @@ export default function ComparisonTable({
           </tbody>
 
           {/* Table Footer Summary */}
-          {filteredList.length > 0 && (
+          {sortedList.length > 0 && (
             <tfoot className="bg-slate-100/90 font-bold border-t border-slate-300 text-slate-900">
               <tr>
                 <td colSpan={4} className="p-3 text-left">
@@ -351,7 +448,7 @@ export default function ComparisonTable({
                   {formatSAR(currentTotal)}
                 </td>
                 <td colSpan={3} className="p-3 text-slate-500 font-normal text-[11px]">
-                  ({filteredList.length} حركة)
+                  ({sortedList.length} حركة)
                 </td>
               </tr>
             </tfoot>

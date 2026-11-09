@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatSAR, fixGarbledArabic } from '../lib/formatters';
+import { formatSAR, fixGarbledArabic, compareByDateAsc } from '../lib/formatters';
 import { ShieldCheck, Building2, Calendar, FileText } from 'lucide-react';
 
 export default function ReconcileAuditReport(props) {
@@ -7,10 +7,11 @@ export default function ReconcileAuditReport(props) {
   const kpis = result.kpis || props.kpis;
   if (!kpis) return null;
 
-  const missingAtDora = result.missingAtDora || props.missingAtDora || [];
-  const missingAtSupplier = result.missingAtSupplier || props.missingAtSupplier || [];
-  const amountMismatches = result.amountMismatches || props.amountMismatches || [];
-  const matched = result.matched || props.matched || [];
+  // Strictly sort chronologically by date: Oldest on top, newest at bottom (من الأقدم إلى الأحدث)
+  const missingAtDora = [...(result.missingAtDora || props.missingAtDora || [])].sort((a, b) => compareByDateAsc(a, b, 'date', 'date'));
+  const missingAtSupplier = [...(result.missingAtSupplier || props.missingAtSupplier || [])].sort((a, b) => compareByDateAsc(a, b, 'date', 'date'));
+  const amountMismatches = [...(result.amountMismatches || props.amountMismatches || [])].sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate'));
+  const matched = [...(result.matched || props.matched || [])].sort((a, b) => compareByDateAsc(a, b, 'supplierDate', 'supplierDate'));
   const supplierName = props.supplierName || props.metadata?.supplierName || 'المورد';
   const period = props.period || props.metadata?.period || 'كافة الفترات المسجلة';
   const currentDate = new Date().toLocaleDateString('ar-SA', {
